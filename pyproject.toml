@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-readme"
+version = "0.1.0"
+description = "Generate and maintain README.md sections by statically analyzing a Python codebase."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Aagosh Raj" }]
+keywords = ["readme", "documentation", "static-analysis", "llm", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+]
+dependencies = [
+    "typer>=0.12.0",
+    "anthropic>=0.28.0",
+    "google-generativeai>=0.8.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.30.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+]
+
+[project.scripts]
+auto-readme = "auto_readme.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["auto_readme*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["auto_readme"]
+omit = ["tests/*"]
