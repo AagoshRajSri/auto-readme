@@ -257,7 +257,7 @@ def greet(name: str, /, greeting: str = "Hello") -> str:
     return f"{greeting}, {name}!"
 """
         result = _analyze_source(source)
-        mod = result.modules[0] if result.modules else None
+        mod = next((m for m in result.modules if m.path.endswith("mod.py")), None)
         assert mod, "No module found"
         fns = {f.name: f for f in mod.functions}
         sig = fns["greet"].signature
@@ -271,7 +271,7 @@ def configure(url: str, *, timeout: int = 30, retries: int = 3) -> None:
     pass
 """
         result = _analyze_source(source)
-        mod = result.modules[0] if result.modules else None
+        mod = next((m for m in result.modules if m.path.endswith("mod.py")), None)
         assert mod, "No module found"
         fns = {f.name: f for f in mod.functions}
         sig = fns["configure"].signature
@@ -285,7 +285,7 @@ def run(a: int, *args, verbose: bool = False) -> None:
     pass
 """
         result = _analyze_source(source)
-        mod = result.modules[0] if result.modules else None
+        mod = next((m for m in result.modules if m.path.endswith("mod.py")), None)
         assert mod, "No module found"
         fns = {f.name: f for f in mod.functions}
         sig = fns["run"].signature
@@ -298,7 +298,7 @@ def send(url: str, **kwargs) -> dict:
     pass
 """
         result = _analyze_source(source)
-        mod = result.modules[0] if result.modules else None
+        mod = next((m for m in result.modules if m.path.endswith("mod.py")), None)
         assert mod, "No module found"
         fns = {f.name: f for f in mod.functions}
         sig = fns["send"].signature
