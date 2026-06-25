@@ -102,7 +102,7 @@ def merge_section(
 
     if pattern.search(readme_text):
         # Markers exist — replace only the block between them (inclusive)
-        return pattern.sub(wrapped.rstrip("\n"), readme_text, count=1)
+        return pattern.sub(lambda _: wrapped.strip(), readme_text, count=1)
     else:
         # No markers — insert before ## License or append at end
         license_pos = _find_license_heading(readme_text)

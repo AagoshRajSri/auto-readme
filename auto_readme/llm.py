@@ -15,8 +15,11 @@ Retry: one retry with 2s backoff on transient errors.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import time
+from pathlib import Path
 from typing import Callable
 
 # ---------------------------------------------------------------------------
@@ -88,7 +91,7 @@ def _call_gemini(prompt: str, system: str | None, model: str, max_tokens: int) -
         raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set.")
 
     genai.configure(api_key=api_key)
-    model_name = model or "gemini-2.5-flash"
+    model_name = model or "gemini-1.5-flash"
 
     client_model = genai.GenerativeModel(
         model_name=model_name,
@@ -136,6 +139,29 @@ def get_provider() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Cache Helpers
+# ---------------------------------------------------------------------------
+
+_CACHE_FILE = Path(".auto-readme-cache.json")
+
+
+def _get_cache() -> dict:
+    if _CACHE_FILE.exists():
+        try:
+            return json.loads(_CACHE_FILE.read_text("utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_cache(cache: dict) -> None:
+    try:
+        _CACHE_FILE.write_text(json.dumps(cache, indent=2), "utf-8")
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Public generate function
 # ---------------------------------------------------------------------------
 
@@ -160,11 +186,21 @@ def generate(
     Raises:
         RuntimeError: If the provider or API key is misconfigured.
     """
+    # 1) Check Cache
+    cache_key = hashlib.md5(f"{_current_provider}:{_current_model}:{system}:{prompt}".encode("utf-8")).hexdigest()
+    cache = _get_cache()
+    if cache_key in cache:
+        return cache[cache_key]
+
     provider_fn = _PROVIDERS[_current_provider]
     attempts = 5
     for attempt in range(attempts):
         try:
-            return provider_fn(prompt, system, _current_model, max_tokens)
+            res = provider_fn(prompt, system, _current_model, max_tokens)
+            # Save to cache
+            cache[cache_key] = res
+            _save_cache(cache)
+            return res
         except Exception as exc:
             # Don't retry configuration/packaging errors — they won't resolve
             if isinstance(exc, (RuntimeError, ImportError)):

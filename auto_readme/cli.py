@@ -33,7 +33,6 @@ app = typer.Typer(
     name="auto-readme",
     help="Generate and maintain README.md sections via static analysis + LLM.",
     add_completion=False,
-    rich_markup_mode="rich",
 )
 console = Console()
 err_console = Console(stderr=True)
@@ -67,12 +66,16 @@ def main(
 
 @app.command("analyze")
 def cmd_analyze(
-    path: Path = typer.Option(Path("."), "--path", "-p", help="Path to the Python project."),
+    path: Path = typer.Argument(Path("."), help="Path to the Python project."),
 ) -> None:
     """
     [bold]Analyze[/bold] a Python project and print extracted symbols (no LLM calls).
     """
     root = path.resolve()
+    if not root.exists():
+        err_console.print(f"[red]Error:[/red] Path '{root}' does not exist.")
+        raise typer.Exit(1)
+
     console.print(f"\n[bold]Analyzing:[/bold] {root}\n")
 
     with Progress(SpinnerColumn(), TextColumn("{task.description}"), transient=True) as prog:
@@ -121,7 +124,7 @@ _VALID_SECTIONS = {"installation", "usage", "api"}
 
 @app.command("generate")
 def cmd_generate(
-    path: Path = typer.Option(Path("."), "--path", "-p", help="Path to the Python project."),
+    path: Path = typer.Argument(Path("."), help="Path to the Python project."),
     sections: str = typer.Option(
         "installation,usage,api",
         "--section", "-s",
@@ -159,6 +162,10 @@ def cmd_generate(
       [cyan]auto-readme generate --path . --force[/cyan]
     """
     root = path.resolve()
+    if not root.exists():
+        err_console.print(f"[red]Error:[/red] Path '{root}' does not exist.")
+        raise typer.Exit(1)
+
     readme_path = readme or (root / "README.md")
 
     # Parse and validate section list

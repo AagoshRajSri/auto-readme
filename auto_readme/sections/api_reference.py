@@ -32,41 +32,50 @@ Output only the beautiful markdown description text, no headings.
 """
 
 
-def _function_prompt(fn: FunctionInfo) -> str:
-    parts = [
-        f"Function: `{fn.name}`",
-        f"Signature: `{fn.name}{fn.signature}`",
-        f"File: `{fn.file_path}` (line {fn.line_number})",
-    ]
-    if fn.is_async:
-        parts.append("(async function)")
-    if fn.docstring:
-        parts.append(f"\nDocstring:\n{fn.docstring}")
-    else:
-        parts.append("\n(No docstring available.)")
-    return "\n".join(parts)
+_BATCH_SYSTEM = """\
+You are an elite technical writer producing premium API reference documentation.
+You will receive a list of Python functions and classes from a single module.
+For EACH item, write a crisp 1–3 sentence description covering what it does, its key parameters, and return value.
+Use the real names exactly as given — do NOT invent parameters or behavior.
+Output ONLY a JSON array (no markdown fences) where each element is:
+  {"name": "<function_or_class_name>", "doc": "<your markdown description>"}
+One element per input item, in the same order.
+"""
 
 
-def _class_prompt(cls: ClassInfo) -> str:
-    parts = [f"Class: `{cls.name}`"]
-    if cls.bases:
-        parts.append(f"Bases: {', '.join(f'`{b}`' for b in cls.bases)}")
-    parts.append(f"File: `{cls.file_path}` (line {cls.line_number})")
-    if cls.docstring:
-        parts.append(f"\nDocstring:\n{cls.docstring}")
-    else:
-        parts.append("\n(No docstring.)")
+def _batch_prompt(mod_path: str, fns: list, classes: list) -> str:
+    items = []
+    for fn in fns:
+        entry = f"FUNCTION `{fn.name}{fn.signature}`"
+        if fn.docstring:
+            entry += f"\nDocstring: {fn.docstring.split(chr(10))[0]}"
+        items.append(entry)
+    for cls in classes:
+        entry = f"CLASS `{cls.name}`"
+        if cls.bases:
+            entry += f" (bases: {', '.join(cls.bases)})"
+        if cls.docstring:
+            entry += f"\nDocstring: {cls.docstring.split(chr(10))[0]}"
+        if cls.methods:
+            sigs = ", ".join(f"`{m.name}{m.signature}`" for m in cls.methods[:5])
+            entry += f"\nMethods: {sigs}"
+        items.append(entry)
+    numbered = "\n\n".join(f"{i+1}. {item}" for i, item in enumerate(items))
+    return f"Module: `{mod_path}`\n\nDocument these {len(items)} items:\n\n{numbered}"
 
-    if cls.methods:
-        parts.append("\nPublic methods:")
-        for m in cls.methods:
-            sig_line = f"  - `{m.name}{m.signature}`"
-            if m.docstring:
-                first_line = m.docstring.split("\n")[0].strip()
-                sig_line += f" — {first_line}"
-            parts.append(sig_line)
 
-    return "\n".join(parts)
+def _parse_batch_response(text: str, names: list[str]) -> dict[str, str]:
+    """Parse the JSON array response, fall back to empty strings on error."""
+    import json, re
+    # Strip any accidental markdown fences
+    text = re.sub(r"^```[a-z]*\n?", "", text.strip(), flags=re.MULTILINE)
+    text = re.sub(r"\n?```$", "", text.strip(), flags=re.MULTILINE)
+    try:
+        data = json.loads(text)
+        return {item["name"]: item.get("doc", "") for item in data if "name" in item}
+    except Exception:
+        # Best-effort: return empty so we fall back to signature-only
+        return {}
 
 
 def build_api_reference(
@@ -78,30 +87,27 @@ def build_api_reference(
     """
     Build the API Reference section.
 
-    Makes one LLM call per public function/class, grouped by module.
+    Makes ONE LLM call per module (batching all symbols), not one per symbol.
 
     Args:
         result: Analyzer output.
         dry_run: If True, skip LLM calls and return placeholder text.
-        max_tokens_per_symbol: Token budget per LLM call.
+        max_tokens_per_symbol: Token budget per symbol (used to compute batch budget).
 
     Returns:
         Markdown string for the ## API Reference section (without markers).
-
-    WARNING: Cost scales linearly with the number of public symbols.
-    Use dry_run=True or --section usage to skip this on large codebases.
     """
     lines: list[str] = ["## API Reference", ""]
     lines.append(
-        "> **Note:** This section is generated per-symbol. "
-        "On large codebases (100+ public symbols) this makes many LLM calls. "
-        "Use `--section usage` to skip this."
+        "> **Note:** This section is generated per-module in a single batched call "
+        "to minimise API quota usage."
     )
     lines.append("")
 
     for mod in result.modules:
-        has_content = bool(mod.functions or mod.classes)
-        if not has_content:
+        fns = mod.functions
+        classes = mod.classes
+        if not fns and not classes:
             continue
 
         lines.append(f"### `{mod.path}`")
@@ -110,37 +116,41 @@ def build_api_reference(
             lines.append(mod.docstring)
             lines.append("")
 
+        # Build name → description map via ONE batched LLM call
+        docs: dict[str, str] = {}
+        if not dry_run and (fns or classes):
+            names = [fn.name for fn in fns] + [cls.name for cls in classes]
+            batch_max = max_tokens_per_symbol * len(names)
+            prompt = _batch_prompt(mod.path, fns, classes)
+            try:
+                raw = generate(prompt, system=_BATCH_SYSTEM, max_tokens=min(batch_max, 4096))
+                docs = _parse_batch_response(raw, names)
+            except Exception:
+                docs = {}  # fall back gracefully to signature-only output
+
         # Functions
-        for fn in mod.functions:
+        for fn in fns:
             lines.append(f"#### `{fn.name}{fn.signature}`")
             lines.append("")
-
             if dry_run:
                 lines.append(f"<!-- DRY RUN: would generate docs for `{fn.name}` -->")
             else:
-                prompt = _function_prompt(fn)
-                desc = generate(prompt, system=_FUNCTION_SYSTEM, max_tokens=max_tokens_per_symbol)
-                lines.append(desc.strip())
-
+                lines.append(docs.get(fn.name, "_No description generated._"))
             lines.append("")
 
         # Classes
-        for cls in mod.classes:
+        for cls in classes:
             lines.append(f"#### class `{cls.name}`")
             if cls.bases:
-                lines.append(f"*Bases: {', '.join(cls.bases)}*")
+                bases_str = ", ".join(f"`{b}`" for b in cls.bases)
+                lines.append(f"*Bases: {bases_str}*")
             lines.append("")
-
             if dry_run:
                 lines.append(f"<!-- DRY RUN: would generate docs for class `{cls.name}` -->")
             else:
-                prompt = _class_prompt(cls)
-                desc = generate(prompt, system=_CLASS_SYSTEM, max_tokens=max_tokens_per_symbol)
-                lines.append(desc.strip())
-
+                lines.append(docs.get(cls.name, "_No description generated._"))
             lines.append("")
 
-            # Method signatures (always shown, no extra LLM call)
             if cls.methods:
                 for meth in cls.methods:
                     lines.append(f"- **`{meth.name}{meth.signature}`**")
@@ -150,3 +160,4 @@ def build_api_reference(
                 lines.append("")
 
     return "\n".join(lines) + "\n"
+

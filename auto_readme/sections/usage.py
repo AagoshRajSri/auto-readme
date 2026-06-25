@@ -130,7 +130,8 @@ def build_usage(
             prompt = (
                 f"Write an elegant and beautifully written Usage section for a premium Python package called `{manifest.name}`. "
                 f"Description: {manifest.description or 'No description available.'}\n"
-                f"Show a clean, professional import and usage example that wows the reader."
+                f"Show a clean, professional import and usage example that wows the reader. "
+                f"If you lack context about what the package does, invent a plausible generic example (e.g. initializing a client, running a basic command, or importing a utility module)."
             )
             generated = generate(prompt, system=_SYSTEM_PROMPT, max_tokens=400)
             lines.append(generated.strip())
