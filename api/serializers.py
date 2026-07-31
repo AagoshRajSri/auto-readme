@@ -1,5 +1,10 @@
+import os
 from rest_framework import serializers
 from .models import ReadmeGeneration
+
+_DEFAULT_PROVIDER = os.environ.get('AUTOREADME_LLM_PROVIDER', 'groq').lower()
+
+
 
 
 class ReadmeGenerationSerializer(serializers.ModelSerializer):
@@ -15,7 +20,8 @@ class ReadmeGenerationSerializer(serializers.ModelSerializer):
 class GenerateReadmeRequestSerializer(serializers.Serializer):
     github_url = serializers.CharField(required=False, max_length=255, allow_blank=True)
     repo_url = serializers.CharField(required=False, max_length=255, allow_blank=True)
-    provider = serializers.ChoiceField(choices=['gemini', 'gpt', 'claude', 'groq', 'huggingface'], default='gemini')
+    provider = serializers.ChoiceField(choices=['gemini', 'gpt', 'claude', 'groq', 'huggingface'], default=_DEFAULT_PROVIDER)
+
 
     def validate(self, attrs):
         url = attrs.get('github_url') or attrs.get('repo_url')
