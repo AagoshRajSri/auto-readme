@@ -3,5 +3,5 @@ djangorestframework
 django-cors-headers
 python-dotenv
 gunicorn
-
-
+openai
+google-generativeai
