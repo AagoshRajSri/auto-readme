@@ -2,24 +2,51 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:           #ffffff;
-  --bg-grid:      #f0f2f5;
-  --border:       #d4d8de;
-  --border-light: #e8eaed;
-  --text:         #000000;
+  --bg:             #ffffff;
+  --bg-secondary:   #f8f9fa;
+  --bg-grid:        #f0f2f5;
+  --border:         #d4d8de;
+  --border-light:   #e8eaed;
+  --text:           #000000;
   --text-secondary: #666666;
   --text-tertiary:  #999999;
-  --accent:       #1a1a1a;
-  --btn-bg:       #1a1a1a;
-  --btn-text:     #ffffff;
-  --card-shadow:  4px 4px 0px #000000;
+  --accent:         #1a1a1a;
+  --btn-bg:         #1a1a1a;
+  --btn-text:       #ffffff;
+  --card-bg:        #ffffff;
+  --card-shadow:    4px 4px 0px #000000;
   --card-shadow-hover: 6px 6px 0px #000000;
-  --radius:       4px;
-  --font-serif:   'Playfair Display', Georgia, serif;
-  --font-sans:    'Inter', system-ui, sans-serif;
-  --font-mono:    'Fira Code', monospace;
-  --max-w:        1160px;
-  --grid-size:    40px;
+  --nav-bg:         rgba(255, 255, 255, 0.92);
+  --code-bg:        #f3f4f6;
+  --pre-bg:         #f8f9fa;
+  --grid-line:      #e5e8ec;
+  --radius:         4px;
+  --font-serif:     'Playfair Display', Georgia, serif;
+  --font-sans:      'Inter', system-ui, sans-serif;
+  --font-mono:      'Fira Code', monospace;
+  --max-w:          1160px;
+  --grid-size:      40px;
+}
+
+[data-theme="dark"] {
+  --bg:             #0a0a0a;
+  --bg-secondary:   #111111;
+  --bg-grid:        #111111;
+  --border:         #2e2e2e;
+  --border-light:   #1e1e1e;
+  --text:           #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-tertiary:  #555555;
+  --accent:         #e5e5e5;
+  --btn-bg:         #ffffff;
+  --btn-text:       #000000;
+  --card-bg:        #111111;
+  --card-shadow:    4px 4px 0px rgba(255,255,255,0.15);
+  --card-shadow-hover: 6px 6px 0px rgba(255,255,255,0.2);
+  --nav-bg:         rgba(10, 10, 10, 0.92);
+  --code-bg:        #1a1a1a;
+  --pre-bg:         #111111;
+  --grid-line:      #1a1a1a;
 }
 
 html { scroll-behavior: smooth; }
@@ -28,12 +55,13 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg);
   background-image:
-    linear-gradient(to right, #e5e8ec 1px, transparent 1px),
-    linear-gradient(to bottom, #e5e8ec 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: var(--grid-size) var(--grid-size);
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* ── App wrapper ──────────────────────────────────────────────────── */
@@ -48,7 +76,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--nav-bg);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-light);
   padding: 0 2.5rem;
@@ -169,21 +197,21 @@ body {
 
 /* ── REPO CARD ───────────────────────────────────────────────────── */
 .repo-card {
-  background: #ffffff;
-  border: 1.5px solid #c8ccd2;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--card-shadow);
   padding: 1.5rem;
   max-width: 660px;
   margin: 0 auto;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, background 0.2s;
 }
 .repo-card:focus-within {
   box-shadow: var(--card-shadow-hover);
 }
 
 .drop-zone {
-  border: 1.5px dashed #b0b8c4;
+  border: 1.5px dashed var(--border);
   border-radius: var(--radius);
   padding: 1rem 1.5rem;
   margin-bottom: 1rem;
@@ -191,8 +219,8 @@ body {
   transition: background 0.2s, border-color 0.2s;
 }
 .drop-zone:hover {
-  background: #f8f9fa;
-  border-color: #888;
+  background: var(--bg-secondary);
+  border-color: var(--text-secondary);
 }
 
 .drop-icon {
@@ -215,7 +243,7 @@ body {
   font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--text);
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
   padding: 0.65rem 0.875rem;
@@ -226,7 +254,7 @@ body {
 .repo-input::placeholder { color: var(--text-tertiary); }
 .repo-input:focus {
   border-color: var(--text);
-  background: #ffffff;
+  background: var(--card-bg);
 }
 .repo-input:disabled { opacity: 0.5; }
 
@@ -248,8 +276,8 @@ body {
   transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 .generate-btn:hover:not(:disabled) {
-  background: #333;
-  box-shadow: 2px 2px 0 #000;
+  opacity: 0.85;
+  box-shadow: 2px 2px 0 var(--text);
   transform: translate(-1px, -1px);
 }
 .generate-btn:active:not(:disabled) {
@@ -442,12 +470,13 @@ body {
 }
 
 .result-window {
-  background: #ffffff;
+  background: var(--card-bg);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--card-shadow);
   padding: 2.5rem;
   min-height: 400px;
+  transition: background 0.2s;
 }
 
 /* ── MARKDOWN ──────────────────────────────────────────────────────── */
@@ -482,13 +511,13 @@ body {
 .markdown-body code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
   padding: 0.1em 0.4em;
   border-radius: 2px;
 }
 .markdown-body pre {
-  background: #f8f9fa;
+  background: var(--pre-bg);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   padding: 1.25rem;
@@ -580,12 +609,12 @@ body {
 }
 
 .how-card {
-  background: #ffffff;
+  background: var(--card-bg);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
   padding: 2rem;
   cursor: default;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition: box-shadow 0.2s, transform 0.2s, background 0.2s;
 }
 .how-card:hover {
   box-shadow: var(--card-shadow);
@@ -640,6 +669,30 @@ body {
 }
 .footer a:hover { color: var(--text); }
 
+/* ── THEME TOGGLE ──────────────────────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+.theme-toggle:hover {
+  background: var(--text);
+  color: var(--btn-text);
+  border-color: var(--text);
+}
+
 /* ── ANIMATIONS ────────────────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -650,7 +703,7 @@ body {
 }
 @keyframes cell-fill {
   0%, 100% { background: transparent; }
-  50%       { background: #1a1a1a; }
+  50%       { background: var(--text); }
 }
 
 /* ── RESPONSIVE ────────────────────────────────────────────────── */

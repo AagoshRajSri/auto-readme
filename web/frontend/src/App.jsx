@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   Copy, CheckCircle2, AlertCircle, Download,
-  GitBranch, Sparkles, ShieldCheck, FileText
+  GitBranch, Sparkles, ShieldCheck, FileText,
+  Sun, Moon
 } from 'lucide-react';
 import './App.css';
 
@@ -36,8 +37,18 @@ export default function App() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState('preview');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('ar-theme') || 'light';
+  });
   const resultRef = useRef(null);
   const stepTimerRef = useRef(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
+    localStorage.setItem('ar-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -93,16 +104,27 @@ export default function App() {
       {/* ── NAV ── */}
       <nav className="nav">
         <span className="nav-logo">auto-readme</span>
-        <a
-          href="https://github.com/AagoshRajSri/auto-readme"
-          target="_blank"
-          rel="noreferrer"
-          className="nav-link"
-          id="nav-github-link"
-        >
-          <GithubIcon size={16} />
-          GitHub
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            id="theme-toggle-btn"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <a
+            href="https://github.com/AagoshRajSri/auto-readme"
+            target="_blank"
+            rel="noreferrer"
+            className="nav-link"
+            id="nav-github-link"
+          >
+            <GithubIcon size={16} />
+            GitHub
+          </a>
+        </div>
       </nav>
 
       <main className="main">
