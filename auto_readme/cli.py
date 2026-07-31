@@ -234,7 +234,7 @@ def cmd_generate(
     if "api" in requested:
         console.print(
             "  [yellow]RUN[/yellow] Building API Reference section "
-            f"([bold]{symbol_count}[/bold] symbols — one LLM call each)..."
+            f"([bold]{symbol_count}[/bold] symbols — one LLM call per module)..."
         )
         content = build_api_reference(result, dry_run=dry_run)
         generated["API"] = content

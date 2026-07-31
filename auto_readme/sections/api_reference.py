@@ -14,31 +14,18 @@ from __future__ import annotations
 from auto_readme.analyzer import AnalysisResult, ClassInfo, FunctionInfo
 from auto_readme.llm import generate
 
-_FUNCTION_SYSTEM = """\
-You are an elite technical writer producing premium, beautifully written API reference documentation.
-You will receive the signature and docstring of a single Python function.
-Write a highly polished, engaging, and crisp reference entry (2–5 sentences) describing what it does, its parameters, and its return value. Ensure the tone is welcoming and exceptionally professional.
-Use the real names — do not invent parameters or behavior not present in the signature or docstring.
-Output only the beautiful markdown description text, no headings. Use parameter names in backticks when referencing them.
-"""
-
-_CLASS_SYSTEM = """\
-You are an elite technical writer producing premium, beautifully written API reference documentation.
-You will receive the name, bases, docstring, and public method signatures of a single Python class.
-Write a highly polished, engaging, and professional reference entry describing the class purpose, its constructor (if methods include __init__), and its key public methods.
-Ensure the text flows beautifully and provides exceptional clarity to developers reading it.
-Do not invent behavior not described in the signatures or docstring.
-Output only the beautiful markdown description text, no headings.
-"""
-
-
 _BATCH_SYSTEM = """\
-You are an elite technical writer producing premium API reference documentation.
-You will receive a list of Python functions and classes from a single module.
-For EACH item, write a crisp 1–3 sentence description covering what it does, its key parameters, and return value.
-Use the real names exactly as given — do NOT invent parameters or behavior.
+You are a world-class technical writer producing premium, highly visual API reference documentation for a developer README.
+
+For EACH function or class provided:
+- Write a crisp 1-3 sentence description: what it does, its key parameters, and its return value.
+- If a function has notable parameters, add a compact markdown table with columns: | Parameter | Type | Description |
+- For classes, mention key methods in a short bullet list.
+- Use the exact real names given — do NOT invent parameters or new behaviour.
+- Use professional, elegant prose. Start each entry with a strong action verb.
+
 Output ONLY a JSON array (no markdown fences) where each element is:
-  {"name": "<function_or_class_name>", "doc": "<your markdown description>"}
+  {"name": "<function_or_class_name>", "doc": "<your full markdown description including any tables/bullets>"}
 One element per input item, in the same order.
 """
 
@@ -104,11 +91,21 @@ def build_api_reference(
     )
     lines.append("")
 
-    for mod in result.modules:
+    active_modules = [m for m in result.modules if m.functions or m.classes]
+    active_modules.sort(key=lambda m: len(m.functions) + len(m.classes), reverse=True)
+    
+    limit = 5
+    if len(active_modules) > limit:
+        lines.append(
+            f"> **Note:** Only the top {limit} modules by symbol density are documented "
+            "here to keep the README concise. Use code documentation tools for full API docs."
+        )
+        lines.append("")
+        active_modules = active_modules[:limit]
+
+    for mod in active_modules:
         fns = mod.functions
         classes = mod.classes
-        if not fns and not classes:
-            continue
 
         lines.append(f"### `{mod.path}`")
         lines.append("")

@@ -12,3 +12,7 @@ env/
 .coverage
 htmlcov/
 .auto-readme-cache.json
+.env
+db.sqlite3
+tmp_workspace/
+

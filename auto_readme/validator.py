@@ -106,10 +106,17 @@ _STDLIB_SKIP = {
     "TypeError", "RuntimeError", "KeyError", "AttributeError", "print",
     "len", "range", "open", "Path", "os", "sys", "re", "ast", "json",
     "Optional", "Union", "Any", "List", "Dict", "Tuple", "Set",
-    "Callable", "Generator", "Iterator", "Sequence", "Mapping",
+    "TypedDict", "OrderedDict",
+    "Callable", "Generator", "Iterator", "Sequence", "Mapping", "Iterable",
+    "AsyncIterator", "AsyncIterable", "Awaitable", "Coroutine",
     "dataclass", "field", "property", "staticmethod", "classmethod",
     "super", "self", "cls", "args", "kwargs",
-    "pip", "pip install", "pytest",
+    "pip", "pip install", "pytest", "py", "python", "python3", "bash", "sh",
+    "ModuleType", "TypeVar", "Generic", "Type",
+    "asyncio", "datetime", "types",
+    "Literal", "Protocol", "Final", "ClassVar", "Annotated",
+    "Self", "Never", "Required", "NotRequired", "Unpack",
+    "Override", "Concatenate", "ParamSpec",
     # Public dunder methods (common in docs but not project-specific symbols)
     "__init__", "__new__", "__call__", "__enter__", "__exit__",
     "__str__", "__repr__", "__len__", "__iter__", "__next__",
@@ -253,6 +260,25 @@ def _check_code_blocks(text: str) -> list[ValidationWarning]:
     return warnings
 
 
+def _extract_defined_symbols_from_code_blocks(text: str) -> set[str]:
+    """Parse python code blocks to extract functions, classes, and variables defined in them."""
+    defined = set()
+    blocks = re.findall(r"```python\s+(.*?)\s*```", text, re.DOTALL)
+    for block in blocks:
+        try:
+            tree = ast.parse(block)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    defined.add(node.name)
+                elif isinstance(node, ast.ClassDef):
+                    defined.add(node.name)
+                elif isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                    defined.add(node.id)
+        except Exception:
+            pass
+    return defined
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -268,9 +294,61 @@ def validate(text: str, result: "AnalysisResult") -> ValidationResult:
     Returns:
         A ValidationResult with the original text and any warnings found.
     """
-    # Merge function/class/method names AND parameter names into known symbols
-    # so the LLM can reference parameter names in backticks without false alarms.
+    from pathlib import Path
+    
+    # 1. Base code symbols and parameter names
     known_symbols = result.all_symbol_names | result.all_parameter_names
+    
+    # 2. Package, directory, and module names
+    for mod in result.modules:
+        p = Path(mod.path)
+        known_symbols.add(p.stem)
+        for part in p.parts:
+            known_symbols.add(Path(part).stem)
+            
+        # 2.5 Extract identifiers from class bases, signatures, and annotations
+        for fn in mod.functions:
+            for match in re.finditer(r"\b[A-Za-z_][A-Za-z0-9_]*\b", fn.signature):
+                known_symbols.add(match.group(0))
+            for arg in fn.args:
+                if arg.annotation:
+                    for match in re.finditer(r"\b[A-Za-z_][A-Za-z0-9_]*\b", arg.annotation):
+                        known_symbols.add(match.group(0))
+        for cls in mod.classes:
+            for base in cls.bases:
+                known_symbols.add(base)
+                for part in base.split("."):
+                    known_symbols.add(part)
+            for meth in cls.methods:
+                for match in re.finditer(r"\b[A-Za-z_][A-Za-z0-9_]*\b", meth.signature):
+                    known_symbols.add(match.group(0))
+                for arg in meth.args:
+                    if arg.annotation:
+                        for match in re.finditer(r"\b[A-Za-z_][A-Za-z0-9_]*\b", arg.annotation):
+                            known_symbols.add(match.group(0))
+                            
+        # 2.6 Extract capitalized words and backticked terms from original source docstrings
+        # If a developer mentioned a class like "Markup" in the docstring, it is a valid symbol.
+        def _extract_from_doc(doc: str | None):
+            if not doc: return
+            # Extract backticked symbols from the docstring
+            for name, _ in _extract_identifiers_from_text(doc):
+                known_symbols.add(name)
+            # Extract PascalCase/CamelCase words (likely class names)
+            for match in re.finditer(r"\b[A-Z][a-zA-Z0-9_]*\b", doc):
+                known_symbols.add(match.group(0))
+                
+        _extract_from_doc(mod.docstring)
+        for fn in mod.functions:
+            _extract_from_doc(fn.docstring)
+        for cls in mod.classes:
+            _extract_from_doc(cls.docstring)
+            for meth in cls.methods:
+                _extract_from_doc(meth.docstring)
+            
+    # 3. Symbols defined locally in markdown example code blocks
+    known_symbols |= _extract_defined_symbols_from_code_blocks(text)
+    
     warnings: list[ValidationWarning] = []
 
     warnings.extend(_check_symbols(text, known_symbols))

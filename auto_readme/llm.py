@@ -80,18 +80,22 @@ def _call_openai(prompt: str, system: str | None, model: str, max_tokens: int) -
 
 def _call_gemini(prompt: str, system: str | None, model: str, max_tokens: int) -> str:
     try:
-        import google.generativeai as genai
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            import google.generativeai as genai
     except ImportError as exc:
         raise RuntimeError(
             "google-generativeai package not installed. Run: pip install google-generativeai"
         ) from exc
+
 
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable not set.")
 
     genai.configure(api_key=api_key)
-    model_name = model or "gemini-1.5-flash"
+    model_name = model or "gemini-2.0-flash"
 
     client_model = genai.GenerativeModel(
         model_name=model_name,
@@ -109,6 +113,34 @@ def _call_gemini(prompt: str, system: str | None, model: str, max_tokens: int) -
     return response.text
 
 
+def _call_groq(prompt: str, system: str | None, model: str, max_tokens: int) -> str:
+    try:
+        from openai import OpenAI  # type: ignore[import-untyped, import-not-found]
+    except ImportError as exc:
+        raise RuntimeError(
+            "openai package not installed. Run: pip install openai"
+        ) from exc
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY environment variable not set.")
+
+    client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    model_name = model or "llama-3.3-70b-versatile"
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content or ""
+
+
 # ---------------------------------------------------------------------------
 # Provider registry and state
 # ---------------------------------------------------------------------------
@@ -117,14 +149,21 @@ _PROVIDERS: dict[str, Callable[..., str]] = {
     "anthropic": _call_anthropic,
     "openai": _call_openai,
     "gemini": _call_gemini,
+    "groq": _call_groq,
 }
 
 _current_provider: str = os.environ.get("AUTOREADME_LLM_PROVIDER", "gemini").lower()
 _current_model: str = os.environ.get("AUTOREADME_LLM_MODEL", "")
 
+if _current_provider not in _PROVIDERS:
+    raise RuntimeError(
+        f"Unknown LLM provider {_current_provider!r} set via AUTOREADME_LLM_PROVIDER. "
+        f"Choose from: {list(_PROVIDERS)}"
+    )
+
 
 def set_provider(name: str, model: str = "") -> None:
-    """Switch LLM provider at runtime. name must be 'gemini', 'anthropic', or 'openai'."""
+    """Switch LLM provider at runtime. name must be 'gemini', 'anthropic', 'openai', or 'groq'."""
     global _current_provider, _current_model
     name = name.lower()
     if name not in _PROVIDERS:
@@ -187,7 +226,7 @@ def generate(
         RuntimeError: If the provider or API key is misconfigured.
     """
     # 1) Check Cache
-    cache_key = hashlib.md5(f"{_current_provider}:{_current_model}:{system}:{prompt}".encode("utf-8")).hexdigest()
+    cache_key = hashlib.md5(f"{_current_provider}:{_current_model}:{system or ''}:{prompt}".encode("utf-8")).hexdigest()
     cache = _get_cache()
     if cache_key in cache:
         return cache[cache_key]
@@ -203,7 +242,7 @@ def generate(
             return res
         except Exception as exc:
             # Don't retry configuration/packaging errors — they won't resolve
-            if isinstance(exc, (RuntimeError, ImportError)):
+            if isinstance(exc, (RuntimeError, ImportError, KeyError)):
                 raise
 
             exc_str = str(exc)

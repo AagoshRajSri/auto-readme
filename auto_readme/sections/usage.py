@@ -12,13 +12,16 @@ from auto_readme.llm import generate
 from auto_readme.manifest import ProjectManifest
 
 _SYSTEM_PROMPT = """\
-You are an elite technical writer producing a stunning, beautifully written Usage section for a premium developer README.
-You will receive the signature and docstring of a single Python entry point.
-Write an engaging, beautifully structured Usage section (2–4 concise, professional paragraphs + 1 well-commented code block) showing how to invoke it. Make the text flow naturally and sound highly professional, welcoming, and exceptionally clear.
-Be concrete — use the real function/class name and real argument names.
-Do NOT invent arguments, options, or behavior that are not in the provided signature.
-Output beautifully formatted markdown only, starting with the heading level the caller will embed it under.
-Do not add a top-level `## Usage` heading — that will be added by the caller.
+You are a world-class technical writer producing stunning, beautifully structured Usage documentation for elite developer READMEs.
+Your output is read by developers evaluating whether to adopt a project — make them feel the product is powerful and polished.
+
+Rules:
+- Use the REAL function/class/argument names from the provided signature. Do NOT invent any names.
+- Structure: a 1-2 sentence engaging intro paragraph, then a well-commented code block, then optionally 1-2 short bullet points for key options/flags.
+- Code blocks must have meaningful inline comments explaining what each step does.
+- Use markdown callouts (> [!TIP] or > [!NOTE]) where appropriate to highlight key behaviours.
+- Output beautifully formatted markdown only. Do NOT add a top-level `## Usage` heading — the caller adds it.
+- Keep it concise and impactful: quality over length.
 """
 
 
@@ -125,16 +128,22 @@ def build_usage(
     if not manifest.cli_scripts and not fns:
         if dry_run:
             lines.append("<!-- DRY RUN: no entry points detected -->")
-        else:
+        elif manifest.description:
+            valid_symbols = list(result.all_symbol_names)[:15]
+            suggestion = f" Use these real symbols from the codebase if possible: {', '.join(valid_symbols)}." if valid_symbols else ""
+            
             # Generic usage from manifest name
             prompt = (
                 f"Write an elegant and beautifully written Usage section for a premium Python package called `{manifest.name}`. "
-                f"Description: {manifest.description or 'No description available.'}\n"
-                f"Show a clean, professional import and usage example that wows the reader. "
-                f"If you lack context about what the package does, invent a plausible generic example (e.g. initializing a client, running a basic command, or importing a utility module)."
+                f"Description: {manifest.description}\n"
+                f"Show a clean, professional import and usage example that wows the reader.{suggestion} "
+                f"CRITICAL: DO NOT invent fake function names or classes. Only use standard Python built-ins or the real symbols provided, otherwise validation will fail."
             )
             generated = generate(prompt, system=_SYSTEM_PROMPT, max_tokens=400)
             lines.append(generated.strip())
+            lines.append("")
+        else:
+            lines.append("No entry points or CLI scripts were detected in this project. Install the package and refer to the source code for usage details.")
             lines.append("")
 
     return "\n".join(lines) + "\n"

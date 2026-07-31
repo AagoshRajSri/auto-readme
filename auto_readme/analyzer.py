@@ -291,8 +291,8 @@ def _extract_class(node: ast.ClassDef, file_path: str) -> ClassInfo | None:
 
 
 def _has_main_block(tree: ast.Module) -> bool:
-    """Return True if the module contains `if __name__ == '__main__':` block."""
-    for node in ast.walk(tree):
+    """Return True if the module contains a top-level `if __name__ == '__main__':` block."""
+    for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.If):
             test = node.test
             if (

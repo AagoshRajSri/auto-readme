@@ -9,24 +9,24 @@ Run with: pytest tests/test_merger.py -v
 
 from __future__ import annotations
 
-from auto_readme.merger import merge_section, merge_sections, _wrap_section, _find_license_heading
+from auto_readme.merger import merge_section, merge_sections, wrap_section, _find_license_heading
 
 
 # ---------------------------------------------------------------------------
-# _wrap_section helper
+# wrap_section helper
 # ---------------------------------------------------------------------------
 
 class TestWrapSection:
     def test_contains_start_marker(self):
-        wrapped = _wrap_section("hello", "USAGE")
+        wrapped = wrap_section("hello", "USAGE")
         assert "<!-- AUTO-README:USAGE:START -->" in wrapped
 
     def test_contains_end_marker(self):
-        wrapped = _wrap_section("hello", "USAGE")
+        wrapped = wrap_section("hello", "USAGE")
         assert "<!-- AUTO-README:USAGE:END -->" in wrapped
 
     def test_contains_content(self):
-        wrapped = _wrap_section("## Usage\nSome text.", "USAGE")
+        wrapped = wrap_section("## Usage\nSome text.", "USAGE")
         assert "## Usage" in wrapped
         assert "Some text." in wrapped
 

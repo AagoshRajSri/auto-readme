@@ -30,7 +30,7 @@ def _end_marker(section_id: str) -> str:
     return f"<!-- AUTO-README:{section_id}:END -->"
 
 
-def _wrap_section(content: str, section_id: str) -> str:
+def wrap_section(content: str, section_id: str) -> str:
     """Wrap content in START/END markers."""
     start = _start_marker(section_id)
     end = _end_marker(section_id)
@@ -58,7 +58,7 @@ def _find_license_heading(text: str) -> int | None:
     offset = 0
     for line in text.splitlines(keepends=True):
         stripped_line = line.strip()
-        if stripped_line.startswith(("```", "~~~")):
+        if re.match(r'^(```+|~~~+)', stripped_line):
             in_code_block = not in_code_block
         elif not in_code_block and re.match(r"^## License\b", stripped_line, re.IGNORECASE):
             return offset
@@ -98,7 +98,7 @@ def merge_section(
         re.DOTALL,
     )
 
-    wrapped = _wrap_section(new_content, section_id)
+    wrapped = wrap_section(new_content, section_id)
 
     if pattern.search(readme_text):
         # Markers exist — replace only the block between them (inclusive)

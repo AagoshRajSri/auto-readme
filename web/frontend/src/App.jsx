@@ -6,11 +6,10 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const EXAMPLE_REPOS = ['fastapi', 'requests', 'flask'];
-const EXAMPLE_URLS = [
-  'https://github.com/tiangolo/fastapi',
-  'https://github.com/psf/requests',
-  'https://github.com/pallets/flask',
+const EXAMPLES = [
+  { name: 'fastapi', url: 'https://github.com/tiangolo/fastapi' },
+  { name: 'requests', url: 'https://github.com/psf/requests' },
+  { name: 'flask', url: 'https://github.com/pallets/flask' },
 ];
 
 // Simple GitHub icon as SVG
@@ -25,7 +24,7 @@ const STEPS = [
   '→ Downloading repository archive',
   '→ Walking AST and extracting symbols',
   '→ Building section prompts',
-  '→ Calling Gemini 1.5 Flash',
+  '→ Calling LLM API',
   '→ Running hallucination guard',
 ];
 
@@ -175,12 +174,12 @@ export default function App() {
                   {/* Examples */}
                   <div className="examples">
                     <span className="examples-label">try:</span>
-                    {EXAMPLE_REPOS.map((name, i) => (
+                    {EXAMPLES.map(({ name, url }) => (
                       <button
                         key={name}
                         type="button"
                         className="example-chip"
-                        onClick={() => setUrl(EXAMPLE_URLS[i])}
+                        onClick={() => setUrl(url)}
                       >
                         {name}
                       </button>
@@ -199,8 +198,7 @@ export default function App() {
           </form>
         </section>
 
-        {/* ── LOADING ── */}
-        {loading && <LoadingState />}
+
 
         {/* ── RESULT ── */}
         {result && (

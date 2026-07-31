@@ -171,7 +171,14 @@ def _read_setup_py(path: Path) -> ProjectManifest:
         # Strategy: split on comma at the top level (not inside quotes/parens)
         deps_raw = _split_install_requires(raw)
         deps = [d.strip().strip("'\"") for d in deps_raw if d and d.strip().strip("'\"")]
-        manifest.dependencies = [d for d in deps if d and " " not in d.strip()]
+        manifest.dependencies = []
+        for d in deps:
+            d = d.strip()
+            if not d:
+                continue
+            d = d.split("#")[0].strip()
+            if d:
+                manifest.dependencies.append(d)
 
     return manifest
 
