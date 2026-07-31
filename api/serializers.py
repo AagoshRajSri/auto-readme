@@ -15,7 +15,7 @@ class ReadmeGenerationSerializer(serializers.ModelSerializer):
 class GenerateReadmeRequestSerializer(serializers.Serializer):
     github_url = serializers.CharField(required=False, max_length=255, allow_blank=True)
     repo_url = serializers.CharField(required=False, max_length=255, allow_blank=True)
-    provider = serializers.ChoiceField(choices=['gemini', 'gpt', 'claude', 'groq'], default='gemini')
+    provider = serializers.ChoiceField(choices=['gemini', 'gpt', 'claude', 'groq', 'huggingface'], default='gemini')
 
     def validate(self, attrs):
         url = attrs.get('github_url') or attrs.get('repo_url')
@@ -23,5 +23,6 @@ class GenerateReadmeRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError({"github_url": "Either github_url or repo_url is required."})
         attrs['url'] = url
         return attrs
+
 
 

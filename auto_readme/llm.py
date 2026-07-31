@@ -141,6 +141,41 @@ def _call_groq(prompt: str, system: str | None, model: str, max_tokens: int) -> 
     return response.choices[0].message.content or ""
 
 
+def _call_huggingface(prompt: str, system: str | None, model: str, max_tokens: int) -> str:
+    try:
+        from openai import OpenAI  # type: ignore[import-untyped, import-not-found]
+    except ImportError as exc:
+        raise RuntimeError(
+            "openai package not installed. Run: pip install openai"
+        ) from exc
+
+    api_key = os.environ.get("HUGGINGFACE_API_KEY")
+    if not api_key:
+        raise RuntimeError("HUGGINGFACE_API_KEY environment variable not set.")
+
+    # Hugging Face provides an OpenAI-compatible router endpoint
+    client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=api_key
+    )
+    
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    model_name = model or "meta-llama/Llama-3.3-70B-Instruct"
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=messages,
+        max_tokens=max_tokens,
+    )
+    return response.choices[0].message.content or ""
+
+
+
+
 # ---------------------------------------------------------------------------
 # Provider registry and state
 # ---------------------------------------------------------------------------
@@ -150,7 +185,9 @@ _PROVIDERS: dict[str, Callable[..., str]] = {
     "openai": _call_openai,
     "gemini": _call_gemini,
     "groq": _call_groq,
+    "huggingface": _call_huggingface,
 }
+
 
 _current_provider: str = os.environ.get("AUTOREADME_LLM_PROVIDER", "gemini").lower()
 _current_model: str = os.environ.get("AUTOREADME_LLM_MODEL", "")
